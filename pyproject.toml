@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "antigravity-history"
+version = "0.3.0"
+description = "Export and recover your Google Antigravity (1.x & 2.x) conversations."
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Neo", email = "neo1027144@gmail.com"},
+]
+dependencies = [
+    "requests>=2.28.0",
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+]
+
+[project.scripts]
+aghistory = "antigravity_history.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]

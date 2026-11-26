@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+antigravity_export/
+test_export/
+.pytest_cache/
+BACKUP_COMMANDS.md
