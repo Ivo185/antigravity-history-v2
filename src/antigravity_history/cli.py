@@ -179,6 +179,9 @@ def export(
     no_subagents: bool = typer.Option(
         False, "--no-subagents", help="Exclude subagent conversations"
     ),
+    md_style: str = typer.Option(
+        "obsidian", "--md-style", help="Collapsible style in Markdown: obsidian / html"
+    ),
     source: str = typer.Option(
         "auto", "--source", help="Data source: auto / offline / online"
     ),
@@ -291,7 +294,9 @@ def export(
 
                 written_filename = ""
                 if format in ("md", "all"):
-                    md_content = format_markdown(title, cascade_id, info, messages)
+                    md_content = format_markdown(
+                        title, cascade_id, info, messages, md_style=md_style
+                    )
                     written_path = write_conversation(
                         md_content,
                         title,

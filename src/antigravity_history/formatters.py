@@ -9,11 +9,28 @@ from datetime import datetime
 from typing import Any
 
 
+def _format_collapsible(
+    title: str,
+    body_lines: list[str],
+    callout_type: str = "note",
+    md_style: str = "obsidian",
+) -> list[str]:
+    """Render a collapsible section (Obsidian foldable callout or HTML <details>)."""
+    if md_style == "html":
+        return [f"<details><summary>{title}</summary>", ""] + body_lines + ["", "</details>"]
+
+    lines = [f"> [!{callout_type}]- {title}"]
+    for line in body_lines:
+        lines.append(">" if line == "" else f"> {line}")
+    return lines
+
+
 def format_markdown(
     title: str,
     cascade_id: str,
     metadata: dict,
     messages: list[dict],
+    md_style: str = "obsidian",
 ) -> str:
     """Format a conversation as a Markdown string."""
     lines = [
@@ -52,12 +69,12 @@ def format_markdown(
     ])
 
     for msg in messages:
-        lines.extend(_format_message_md(msg))
+        lines.extend(_format_message_md(msg, md_style=md_style))
 
     return "\n".join(lines)
 
 
-def _format_message_md(msg: dict) -> list[str]:
+def _format_message_md(msg: dict, md_style: str = "obsidian") -> list[str]:
     """Format a single message as Markdown lines."""
     role = msg.get("role", "")
     content = msg.get("content", "")
@@ -75,11 +92,14 @@ def _format_message_md(msg: dict) -> list[str]:
         lines.append(f"## 🤖 Assistant{ts_suffix}")
         thinking = msg.get("thinking")
         if thinking:
-            lines.append("<details><summary>💭 Thinking</summary>")
-            lines.append("")
-            lines.append(thinking)
-            lines.append("")
-            lines.append("</details>")
+            lines.extend(
+                _format_collapsible(
+                    "💭 Thinking",
+                    thinking.splitlines(),
+                    callout_type="abstract",
+                    md_style=md_style,
+                )
+            )
             lines.append("")
         if content:
             lines.append(content)
@@ -101,9 +121,9 @@ def _format_message_md(msg: dict) -> list[str]:
         lines.append("")
 
     elif role == "system":
-        lines.append(f"> ⚙️ **System**{ts_suffix}")
+        lines.append(f"> [!warning]- ⚙️ System{ts_suffix}" if md_style == "obsidian" else f"> ⚙️ **System**{ts_suffix}")
         for line in content.splitlines():
-            lines.append(f"> {line}")
+            lines.append(">" if line == "" else f"> {line}")
         lines.append("")
 
     elif role == "tool":
@@ -115,13 +135,15 @@ def _format_message_md(msg: dict) -> list[str]:
             diff = msg.get("diff")
             if diff:
                 lines.append("")
-                lines.append("```diff")
-                if len(diff) > 3000:
-                    lines.append(diff[:3000])
-                    lines.append(f"... (truncated, {len(diff)} chars total)")
-                else:
-                    lines.append(diff)
-                lines.append("```")
+                diff_body = diff[:3000] + (f"\n... (truncated, {len(diff)} chars total)" if len(diff) > 3000 else "")
+                lines.extend(
+                    _format_collapsible(
+                        "📝 Diff",
+                        ["```diff", *diff_body.splitlines(), "```"],
+                        callout_type="info",
+                        md_style=md_style,
+                    )
+                )
 
         elif tool_name == "run_command" and "output" in msg:
             cwd = msg.get("cwd", "")
@@ -136,28 +158,29 @@ def _format_message_md(msg: dict) -> list[str]:
             output = msg.get("output")
             if output:
                 lines.append("")
-                lines.append("<details><summary>📤 Output</summary>")
-                lines.append("")
-                lines.append("```")
-                if len(output) > 5000:
-                    lines.append(output[:5000])
-                    lines.append(f"... (truncated, {len(output)} chars total)")
-                else:
-                    lines.append(output)
-                lines.append("```")
-                lines.append("")
-                lines.append("</details>")
+                out_body = output[:5000] + (f"\n... (truncated, {len(output)} chars total)" if len(output) > 5000 else "")
+                lines.extend(
+                    _format_collapsible(
+                        "📤 Output",
+                        ["```", *out_body.splitlines(), "```"],
+                        callout_type="example",
+                        md_style=md_style,
+                    )
+                )
 
         elif tool_name == "search_web":
             lines.append(f"Query: {content}")
             search_summary = msg.get("search_summary")
             if search_summary:
                 lines.append("")
-                lines.append("<details><summary>🔍 Search Results</summary>")
-                lines.append("")
-                lines.append(search_summary)
-                lines.append("")
-                lines.append("</details>")
+                lines.extend(
+                    _format_collapsible(
+                        "🔍 Search Results",
+                        search_summary.splitlines(),
+                        callout_type="info",
+                        md_style=md_style,
+                    )
+                )
 
         elif tool_name == "view_file" and (msg.get("num_lines") or msg.get("num_bytes")):
             num_lines = msg.get("num_lines")
@@ -178,25 +201,27 @@ def _format_message_md(msg: dict) -> list[str]:
                 if len(args_str) > 3000:
                     args_str = args_str[:3000] + "\n... (truncated)"
                 lines.append("")
-                lines.append("<details><summary>📋 Arguments</summary>")
-                lines.append("")
-                lines.append("```json")
-                lines.append(args_str)
-                lines.append("```")
-                lines.append("")
-                lines.append("</details>")
+                lines.extend(
+                    _format_collapsible(
+                        "📋 Arguments",
+                        ["```json", *args_str.splitlines(), "```"],
+                        callout_type="info",
+                        md_style=md_style,
+                    )
+                )
             output = msg.get("output")
             if output:
                 if len(output) > 5000:
                     output = output[:5000] + f"\n... (truncated, {len(output)} chars total)"
                 lines.append("")
-                lines.append("<details><summary>📤 Output</summary>")
-                lines.append("")
-                lines.append("```")
-                lines.append(output)
-                lines.append("```")
-                lines.append("")
-                lines.append("</details>")
+                lines.extend(
+                    _format_collapsible(
+                        "📤 Output",
+                        ["```", *output.splitlines(), "```"],
+                        callout_type="example",
+                        md_style=md_style,
+                    )
+                )
 
         lines.append("")
 

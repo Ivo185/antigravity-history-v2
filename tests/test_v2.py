@@ -144,6 +144,17 @@ class TestAntigravityV2(unittest.TestCase):
             md = format_markdown(info["summary"], "11111111-aaaa-bbbb-cccc-000000000001", info, msgs)
             self.assertIn("# Fallback title from prompt", md)
 
+            md_obs = format_markdown(
+                info["summary"],
+                "11111111-aaaa-bbbb-cccc-000000000001",
+                info,
+                [{"role": "assistant", "content": "Hi", "thinking": "Step 1\n\nStep 2"}],
+                md_style="obsidian",
+            )
+            self.assertIn("> [!abstract]- 💭 Thinking", md_obs)
+            self.assertIn("> Step 1", md_obs)
+            self.assertIn(">\n> Step 2", md_obs)
+
             idx = format_index_markdown([
                 {
                     "cascade_id": "11111111-aaaa-bbbb-cccc-000000000001",
