@@ -40,6 +40,7 @@ from antigravity_history.discovery import (
 )
 from antigravity_history.formatters import (
     build_conversation_record,
+    extract_project_name,
     format_index_markdown,
     format_json,
     format_markdown,
@@ -292,6 +293,8 @@ def export(
                     progress.advance(task)
                     continue
 
+                project = extract_project_name(info)
+
                 written_filename = ""
                 if format in ("md", "all"):
                     md_content = format_markdown(
@@ -303,11 +306,14 @@ def export(
                         str(output_dir),
                         ".md",
                         fallback_name=cascade_id[:8],
+                        subfolder=project,
                     )
-                    written_filename = os.path.basename(written_path)
+                    # Relative path from output_dir for index links
+                    written_filename = os.path.relpath(written_path, str(output_dir))
 
                 record = build_conversation_record(cascade_id, title, info, messages)
                 if format in ("json", "all"):
+                    record["project"] = project or "(no project)"
                     all_records.append(record)
 
                 index_entries.append({
@@ -318,6 +324,7 @@ def export(
                     "last_modified_time": info.get("lastModifiedTime", ""),
                     "parent_conversation_id": info.get("parentConversationId", ""),
                     "workspaces": record.get("workspaces", []),
+                    "project": project,
                     "filename": written_filename,
                 })
 

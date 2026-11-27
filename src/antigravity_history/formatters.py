@@ -229,32 +229,55 @@ def _format_message_md(msg: dict, md_style: str = "obsidian") -> list[str]:
 
 
 def format_index_markdown(entries: list[dict[str, Any]]) -> str:
-    """Format an _index.md overview table of all exported conversations."""
+    """Format an _index.md overview table of all exported conversations, grouped by project."""
+    # Group entries by project
+    from collections import defaultdict
+
+    by_project: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    for i, item in enumerate(entries, 1):
+        project = item.get("project", "")
+        by_project[project].append((i, item))
+
+    # Sort project groups: named projects first (alpha), then no-project at the end
+    sorted_projects = sorted(
+        by_project.keys(), key=lambda p: (p == "", p.lower())
+    )
+
+    project_count = sum(1 for p in sorted_projects if p)
+
     lines = [
         "# Antigravity Conversations Index",
         "",
         f"- **Exported**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"- **Total conversations**: {len(entries)}",
+        f"- **Projects**: {project_count}",
         "",
-        "| # | Last Modified | Steps | Messages | Title | Workspace | ID |",
-        "|---:|---|---:|---:|---|---|---|",
     ]
-    for i, item in enumerate(entries, 1):
-        mod = (item.get("last_modified_time") or "?")[:19].replace("T", " ")
-        steps = item.get("step_count", 0)
-        msgs = item.get("message_count", 0)
-        title = (item.get("title") or "Untitled").replace("|", "\\|")
-        filename = item.get("filename", "")
-        title_cell = f"[{title}]({filename})" if filename else title
-        if item.get("parent_conversation_id"):
-            title_cell = f"↳ {title_cell}"
-        ws = ", ".join(item.get("workspaces", []))
-        ws = ws.replace("file:///", "").replace("%3A", ":").replace("%20", " ")
-        if len(ws) > 40:
-            ws = "..." + ws[-37:]
-        cid = item.get("cascade_id", "")[:8]
-        lines.append(f"| {i} | {mod} | {steps} | {msgs} | {title_cell} | {ws} | `{cid}` |")
-    lines.append("")
+
+    for project in sorted_projects:
+        items = by_project[project]
+        if project:
+            lines.append(f"## 📁 {project}")
+        else:
+            lines.append("## 💬 Conversations (no project)")
+        lines.append("")
+        lines.append("| # | Last Modified | Steps | Messages | Title | ID |")
+        lines.append("|---:|---|---:|---:|---|---|")
+
+        for i, item in items:
+            mod = (item.get("last_modified_time") or "?")[:19].replace("T", " ")
+            steps = item.get("step_count", 0)
+            msgs = item.get("message_count", 0)
+            title = (item.get("title") or "Untitled").replace("|", "\\|")
+            filename = item.get("filename", "")
+            title_cell = f"[{title}]({filename})" if filename else title
+            if item.get("parent_conversation_id"):
+                title_cell = f"↳ {title_cell}"
+            cid = item.get("cascade_id", "")[:8]
+            lines.append(f"| {i} | {mod} | {steps} | {msgs} | {title_cell} | `{cid}` |")
+
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -299,19 +322,54 @@ def safe_filename(title: str, max_len: int = 60, fallback: str = "conversation")
     return cleaned or fallback
 
 
+def extract_project_name(metadata: dict) -> str:
+    """Extract project folder name from workspace URIs.
+
+    Returns the last path segment of the first workspace URI,
+    or "" if no workspace is set (plain chat).
+    """
+    from urllib.parse import unquote, urlparse
+
+    workspaces = metadata.get("workspaces", [])
+    if not workspaces:
+        return ""
+    uri = ""
+    if isinstance(workspaces[0], dict):
+        uri = workspaces[0].get("workspaceFolderAbsoluteUri", "")
+    elif isinstance(workspaces[0], str):
+        uri = workspaces[0]
+    if not uri:
+        return ""
+    # Decode percent-encoding and get last path segment
+    decoded = unquote(uri)
+    # Remove file:/// prefix and trailing slashes
+    path = decoded.replace("file:///", "").rstrip("/")
+    # Last segment is the project name
+    name = path.rsplit("/", 1)[-1] if "/" in path else path
+    # Clean for use as folder name
+    cleaned = re.sub(r'[<>:"|?*]', "_", name).strip(" _.")
+    return cleaned or ""
+
+
 def write_conversation(
     content: str,
     title: str,
     output_dir: str,
     extension: str = ".md",
     fallback_name: str = "conversation",
+    subfolder: str = "",
 ) -> str:
-    """Write formatted content to a file, return the file path."""
+    """Write formatted content to a file, return the file path.
+
+    If subfolder is set, the file is placed in output_dir/subfolder/.
+    """
+    target_dir = os.path.join(output_dir, subfolder) if subfolder else output_dir
+    os.makedirs(target_dir, exist_ok=True)
     base = safe_filename(title, fallback=fallback_name)
-    filepath = os.path.join(output_dir, base + extension)
+    filepath = os.path.join(target_dir, base + extension)
     counter = 2
     while os.path.exists(filepath):
-        filepath = os.path.join(output_dir, f"{base}_{counter}{extension}")
+        filepath = os.path.join(target_dir, f"{base}_{counter}{extension}")
         counter += 1
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)

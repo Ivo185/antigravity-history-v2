@@ -3,6 +3,7 @@
 Export and recover your Google Antigravity AI conversations to Markdown (Obsidian-ready) and JSON.
 
 Updated for **Antigravity 2.x** (tested on `2.35.2`):
+- **Project Folder Organization**: Automatically places conversation files into subfolders named after their project (e.g. `Android backup app/`, `20-20-20 app/`, `DiskCleanup/`), while generic non-project chats stay directly in the root export directory. `_index.md` also groups conversations by project.
 - **Offline 2.x Reader**: Automatically reads `~/.gemini/antigravity/conversation_summaries.db` and `brain/<id>/.system_generated/logs/transcript_full.jsonl` when LanguageServer uses stdin host-bridge auth (`--read_host_bridge_token_from_stdin`).
 - **Obsidian Foldable Callouts**: Thinking chains, tool arguments, and outputs use native Obsidian collapsible callouts (`> [!abstract]- 💭 Thinking`, `> [!info]- 📋 Arguments`, `> [!example]- 📤 Output`) so they collapse/expand cleanly with the triangle in Obsidian (`--md-style html` is also available for `<details>`).
 - **Full Fidelity Export**: Preserves `<USER_REQUEST>` prompts, AI `thinking` chains, `tool_calls` + arguments, tool outputs, token counts, subagent relationships, and generates `_index.md`.
