@@ -16,7 +16,9 @@ Updated for **Antigravity 2.x** (tested on `2.35.2`):
 ```powershell
 # From GitHub:
 pip install git+https://github.com/Ivo185/antigravity-history-v2.git
+```
 
+```powershell
 # Or local editable install (recommended if you pull updates with `git pull`):
 git clone https://github.com/Ivo185/antigravity-history-v2.git
 cd antigravity-history-v2
